@@ -114,23 +114,30 @@ struct image_t *load_bmp(const char *path)
 	}
 
 	/* Begin reading actual data */
-	fseek(f, header->data_offset, SEEK_SET);
-
-	unsigned char *image_data = malloc(dib_header->image_size);
-	fread(image_data, dib_header->image_size, 1, f);
-	
-	/* Sanity check */
-	if(image_data == NULL)
+	unsigned char *image_data = malloc(dib_header->width * dib_header->height * dib_header->bpp / 8);
+	if(!image_data)
 	{
-		free(header);
-		free(dib_header);
-		free(image_data);
+		printf("Failed to malloc image_data\n");
 		fclose(f);
 		return NULL;
 	}
 
+	fseek(f, header->data_offset, SEEK_SET);
+	
+	/* Read BMP data row-by-row, taking row padding into consideration */
+	unsigned int padcount = 0;
+	if((dib_header->width * dib_header->bpp / 8) % 4 != 0)
+		padcount = 4 - ((dib_header->width * dib_header->bpp / 8) % 4);
+
+	for(int y=0; y<dib_header->height; y++)
+	{
+		unsigned int index = y * dib_header->width * dib_header->bpp / 8;
+		fread(image_data+index, dib_header->width * dib_header->bpp / 8, 1, f);
+		fseek(f, padcount, SEEK_CUR);
+	}
+
 	/* .BMP files are BGR, Iterate through data and swap BGR data to RGB */
-	for(unsigned int i=0; i<dib_header->image_size; i+=3)
+	for(unsigned int i=0; i<dib_header->width*dib_header->height*dib_header->bpp / 8; i+=3) // FIXME
 	{
 		unsigned char stor = image_data[i];
 		image_data[i] = image_data[i+2];
@@ -139,8 +146,11 @@ struct image_t *load_bmp(const char *path)
 
 	/* Setup return structures */
 	struct image_t *img = malloc(sizeof(struct image_t));
-	img->info = malloc(sizeof(struct img_info_t));
 
+	if(!img)
+		printf("Failed to malloc image_t\n");
+
+	img->info = malloc(sizeof(struct img_info_t));
 	img->info->bpp = dib_header->bpp;
 	img->info->channels = 3;
 	img->info->width = dib_header->width;
@@ -151,6 +161,7 @@ struct image_t *load_bmp(const char *path)
 	free(header);
 	free(dib_header);
 	fclose(f);
+
 	return img;
 }
 
@@ -171,7 +182,7 @@ int write_bmp(struct image_t *image, const char *path)
 	dib_header.planes = 1;
 	dib_header.bpp = image->info->bpp;
 	dib_header.compression = 0;
-	dib_header.image_size = image->info->width * image->info->height * image->info->bpp / 8; // TODO this can actually be 0 it seems
+	dib_header.image_size = 0;
 	dib_header.res_h = 0;
 	dib_header.res_v = 0;
 	dib_header.palette_colors = 0; // 0 = 2^n
@@ -204,7 +215,18 @@ int write_bmp(struct image_t *image, const char *path)
 		fwrite(&color, 4, 1, f);
 	}
 
-	fwrite(image->data, image->info->width * image->info->height * image->info->bpp / 8, 1, f);
+	// Write rows to file. Making sure to pad row length to 4 bytes
+	unsigned int padcount = 0;
+	if(image->info->width % 4 != 0)
+		padcount = 4 - (image->info->width % 4);
+
+	for(int y=0; y<image->info->height; y++)
+	{
+		unsigned int index = y * image->info->width * image->info->bpp / 8;
+		fwrite(image->data+index, image->info->width * image->info->bpp / 8, 1, f);
+		for(int p=0; p<padcount; p++)
+			putc(0, f);
+	}
 
 	fclose(f);
 	return 1;
