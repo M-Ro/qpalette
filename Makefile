@@ -1,7 +1,7 @@
-OBJ=colormap.o bmp.o qpalette.o
+OBJ=colormap.o bmp.o png.o qpalette.o
 
 TARGET=qpalette
-LDFLAGS=
+LDFLAGS=-lpng
 CXX=gcc
 LD=gcc
 CXXFLAGS=--Wall -Wextra -Wno-comment
