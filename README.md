@@ -5,13 +5,30 @@ palette.
 
 # Compiling
 
+Dependencies: libpng
+
 1)  make
 
 # Usage
 
-qpalette <sourcefile.ext> [options]
+qpalette [options] <sourcefile>
 
-Example: qpalette lightning.bmp -fb
+Examples: 
+```
+./qpalette -b -t png lightning.bmp
+```
+  Will convert RGB "lightning.bmp" into paletted "lightning_conv.png" with fullbrights enabled
+
+```
+./qpalette -t bmp -o output.bmp texture01.png
+```
+  Will convert RGB "texture01.png" into palletted "output.bmp"
 
 ## Options:
-  -fb: Allow fullbright colors to be used from colormap
+  -b   -  Allow use of fullbright colors from Quake 1 colormap
+  
+  -o   -  Output file name, e.g -o out.png - default is input_conv.ext
+  
+  -t   -  Output file type, Valid values are bmp, png - default is input filetype
+  
+  -h   -  Print usage help
